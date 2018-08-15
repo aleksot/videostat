@@ -60,11 +60,16 @@ class GameStreamStatRepository implements Contract
                 }
 
                 if ($statements_bind) {
-                    $query = 'INSERT INTO `gss_stat_bind`
-                      (`games_services_id`, `gss_stat_id`, `created_at`)
-                      VALUES ' . join(', ', $statements_bind);
+                    $table_name = sprintf('gss_stat_bind_%s', date('Y_m'));
+                    $query = 'CREATE TABLE IF NOT EXISTS `' . $table_name . '` LIKE `gss_stat_bind`';
 
-                    DB::connection('gss_stat_bind')->insert($query, $values_bind);
+                    if ($res = DB::connection("gss_stat_bind")->statement($query)) {
+                        $query = 'INSERT INTO `' . $table_name . '`
+                            (`games_services_id`, `gss_stat_id`, `created_at`)
+                            VALUES ' . join(', ', $statements_bind);
+
+                        DB::connection('gss_stat_bind')->insert($query, $values_bind);
+                    }
                 }
             }
         }
