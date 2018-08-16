@@ -14,5 +14,7 @@ interface GameStreamStatRepository
         $offset
     );
 
+    public function findViewersForGamesServices($games_services, $period_start, $period_end, $limit, $offset);
+
     public function collect(GameService $game_service, $streams);
 }

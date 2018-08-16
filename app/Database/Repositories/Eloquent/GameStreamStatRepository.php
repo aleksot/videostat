@@ -39,15 +39,16 @@ class GameStreamStatRepository implements Contract
             $offset
         );
 
-        $data = $this->normalizeGameStatBinds($games_streams_stat_binds);
-
         $result = [];
 
-        foreach ($data as $shard => &$shard_data) {
-            foreach ($shard_data as $games_streams_stat_suffix => &$games_streams_stat_binds) {
-                $table_name = sprintf('games_streams_stat_%s', $games_streams_stat_suffix);
+        if ($games_streams_stat_binds) {
+            $data = $this->normalizeGameStatBinds($games_streams_stat_binds);
 
-                $query = "
+            foreach ($data as $shard => &$shard_data) {
+                foreach ($shard_data as $games_streams_stat_suffix => &$games_streams_stat_binds) {
+                    $table_name = sprintf('games_streams_stat_%s', $games_streams_stat_suffix);
+
+                    $query = "
                     SELECT
                       `id`,
                       `external_stream_id`
@@ -56,26 +57,27 @@ class GameStreamStatRepository implements Contract
                     WHERE
                       `id` IN(" . join(', ', array_map('intval', array_column($games_streams_stat_binds, 'id'))) . ")";
 
-                $res = DB::connection("gss_stat_$shard")->select($query);
+                    $res = DB::connection("gss_stat_$shard")->select($query);
 
-                foreach ($res as $row) {
-                    $id = array_get($row, 'id');
+                    foreach ($res as $row) {
+                        $id = array_get($row, 'id');
 
-                    if (isset($games_streams_stat_binds[$id])) {
-                        $result[$id] = array_merge(
-                            $games_streams_stat_binds[$id],
-                            ['stream_id' => array_get($row, 'external_stream_id')]
-                        );
+                        if (isset($games_streams_stat_binds[$id])) {
+                            $result[$id] = array_merge(
+                                $games_streams_stat_binds[$id],
+                                ['stream_id' => array_get($row, 'external_stream_id')]
+                            );
 
-                        unset($games_streams_stat_binds[$id]);
+                            unset($games_streams_stat_binds[$id]);
+                        }
                     }
                 }
+
+                unset($games_streams_stat_binds, $data[$shard]);
             }
 
-            unset($games_streams_stat_binds, $data[$shard]);
+            unset($shard_data, $data);
         }
-
-        unset($shard_data, $data);
 
         return collect($result)->map(function ($arg) {
             return is_array($arg) ? collect($arg) : $arg;
@@ -103,15 +105,16 @@ class GameStreamStatRepository implements Contract
             $offset
         );
 
-        $data = $this->normalizeGameStatBinds($games_streams_stat_binds);
-
         $result = [];
 
-        foreach ($data as $shard => &$shard_data) {
-            foreach ($shard_data as $games_streams_stat_suffix => &$games_streams_stat_binds) {
-                $table_name = sprintf('games_streams_stat_%s', $games_streams_stat_suffix);
+        if ($games_streams_stat_binds) {
+            $data = $this->normalizeGameStatBinds($games_streams_stat_binds);
 
-                $query = "
+            foreach ($data as $shard => &$shard_data) {
+                foreach ($shard_data as $games_streams_stat_suffix => &$games_streams_stat_binds) {
+                    $table_name = sprintf('games_streams_stat_%s', $games_streams_stat_suffix);
+
+                    $query = "
                     SELECT
                       `id`,
                       `external_viewers_count`
@@ -120,26 +123,27 @@ class GameStreamStatRepository implements Contract
                     WHERE
                       `id` IN(" . join(', ', array_map('intval', array_column($games_streams_stat_binds, 'id'))) . ")";
 
-                $res = DB::connection("gss_stat_$shard")->select($query);
+                    $res = DB::connection("gss_stat_$shard")->select($query);
 
-                foreach ($res as $row) {
-                    $id = array_get($row, 'id');
+                    foreach ($res as $row) {
+                        $id = array_get($row, 'id');
 
-                    if (isset($games_streams_stat_binds[$id])) {
-                        $result[$id] = array_merge(
-                            $games_streams_stat_binds[$id],
-                            ['stream_id' => array_get($row, 'external_stream_id')]
-                        );
+                        if (isset($games_streams_stat_binds[$id])) {
+                            $result[$id] = array_merge(
+                                $games_streams_stat_binds[$id],
+                                ['viewers_count' => array_get($row, 'external_viewers_count')]
+                            );
 
-                        unset($games_streams_stat_binds[$id]);
+                            unset($games_streams_stat_binds[$id]);
+                        }
                     }
                 }
+
+                unset($games_streams_stat_binds, $data[$shard]);
             }
 
-            unset($games_streams_stat_binds, $data[$shard]);
+            unset($shard_data, $data);
         }
-
-        unset($shard_data, $data);
 
         return collect($result)->map(function ($arg) {
             return is_array($arg) ? collect($arg) : $arg;
@@ -231,13 +235,13 @@ class GameStreamStatRepository implements Contract
             if ($games_services_ids) {
                 $result = [];
 
-                $limit_original = $limit;
-
                 $period_start = static::periodToDateTime($period_start);
                 $period_end = static::periodToDateTime($period_end);
 
-                foreach ($this->findGssStatBindTables($period_start, $period_end) as $table_name) {
-                    $query = "
+                $query = $values = [];
+
+                foreach ($this->findGssStatBindTables($period_start, $period_end) as $index => $table_name) {
+                    $query[] = "
                         SELECT
                           `gss_stat_id` `id`,
                           `games_services_id`,
@@ -246,38 +250,30 @@ class GameStreamStatRepository implements Contract
                           `$table_name`
                         WHERE
                           `games_services_id` IN(" . join(', ', array_map('intval', array_keys($games_services_ids))) . ")
-                          AND `created_at` BETWEEN :period_start AND :period_end
-                        ORDER BY
-                            `created_at`
-                        LIMIT :offset, :limit";
+                          AND `created_at` BETWEEN :period_start_$index AND :period_end_$index";
 
-                    $res = DB::connection('gss_stat_bind')->select($query, [
-                        ':period_start' => $period_start,
-                        ':period_end' => $period_end,
-                        ':offset' => $offset,
-                        ':limit' => $limit,
-                    ]);
-
-                    if ($res) {
-                        foreach ($res as $key => $params) {
-                            $result[array_get($params, 'id')] = $params;
-                            unset($res[$key]);
-                        }
-                    }
-
-                    $cnt = count($result);
-
-                    if ($cnt >= $limit)
-                        break;
-
-                    $offset -= $cnt;
-                    $offset = max($offset, 0);
-
-                    $limit -= $cnt;
-                    $limit = max($limit, 0);
+                    $values = array_merge(
+                        $values,
+                        [
+                            ":period_start_$index" => $period_start,
+                            ":period_end_$index" => $period_end,
+                        ]
+                    );
                 }
 
-                $result = array_slice($result, 0, $limit_original);
+                $query = join(' UNION ALL ', $query) . ' ORDER BY `games_services_id`, `created_at` LIMIT :offset, :limit';
+
+                $values[':limit'] = $limit;
+                $values[':offset'] = $offset;
+
+                $res = DB::connection('gss_stat_bind')->select($query, $values);
+
+                if ($res) {
+                    foreach ($res as $key => $params) {
+                        $result[array_get($params, 'id')] = $params;
+                        unset($res[$key]);
+                    }
+                }
             } else {
                 $result = [];
             }

@@ -22,7 +22,7 @@ class GameServiceRepository implements Contract
         return $game_service->where($game_service->getKeyName(), $id)->first();
     }
 
-    public function findActiveForGames($games)
+    public function findForGames($games)
     {
         $game_service = $this->game_service;
 
@@ -33,8 +33,7 @@ class GameServiceRepository implements Contract
 
         if ($games_ids) {
             $result = $game_service
-                ->whereIn('game_id', $games_ids)
-                ->where('is_active', GameService::IS_ACTIVE_ACTIVE)
+                ->whereIn('game_id', array_keys($games_ids))
                 ->get();
         } else {
             $result = [];
