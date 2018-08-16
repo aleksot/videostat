@@ -30,4 +30,22 @@ class StreamController extends Controller
 
         return new GameStreamCollection($streams_list);
     }
+
+    public function viewers(
+        Request $request,
+        GameRepository $game_repository,
+        GameServiceRepository $game_service_repository,
+        GameStreamStatRepository $game_stream_stat_repository
+    ) {
+        $games_services = $game_service_repository->findActiveForGame($game_repository->find($request->game_id));
+        $streams_list = $game_stream_stat_repository->findStreamsListForGamesServices(
+            $games_services,
+            $request->period_start,
+            $request->period_end,
+            $request->limit,
+            $request->offset
+        );
+
+        return new GameStreamCollection($streams_list);
+    }
 }

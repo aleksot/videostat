@@ -6,13 +6,11 @@ use Illuminate\Support\ServiceProvider;
 
 use TwitchApi\TwitchApi;
 
-use Videostat\Components\StreamApi;
 use Videostat\Components\GamesStreamsCollector;
 use Videostat\Components\ServiceApi;
 
 use Videostat\Services\Adapters\Service\Twitch;
 use Videostat\Services\ServiceApiService;
-use Videostat\Services\Api\StreamService;
 
 use Videostat\Contracts\Database\Models\Game as GameContract;
 use Videostat\Contracts\Database\Repositories\GameRepository as GameRepositoryContract;
@@ -111,10 +109,6 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(ServiceApi::FACADE_ACCESSOR, function() {
             return new ServiceApiService;
-        });
-
-        $this->app->bind(StreamApi::FACADE_ACCESSOR, function($app) {
-            return new StreamService($app->make(GameStreamStatRepositoryContract::class));
         });
 
         $this->app->bind(TwitchApi::class, function() {

@@ -71,7 +71,7 @@ class GameStreamStatRepository implements Contract
 
             $res = DB::connection("gss_stat_$shard")->select($query, [
                 ':offset' => $offset,
-                ':limit' => $limit
+                ':limit' => $limit,
             ]);
 
             if ($res) {
@@ -89,7 +89,7 @@ class GameStreamStatRepository implements Contract
             $offset -= $cnt;
             $offset = max($offset, 0);
 
-            $limit-= $cnt;
+            $limit -= $cnt;
             $limit = max($limit, 0);
         }
 
