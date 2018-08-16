@@ -2,6 +2,7 @@
 
 namespace Videostat\Http;
 
+use Videostat\Http\Middleware\CheckGame;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 
 use Laravel\Passport\Http\Middleware\CheckClientCredentials;
@@ -62,5 +63,6 @@ class Kernel extends HttpKernel
         'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'client' => CheckClientCredentials::class,
+        'check_game' => CheckGame::class,
     ];
 }
