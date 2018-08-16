@@ -6,10 +6,10 @@ use Illuminate\Http\Request;
 
 use Videostat\Contracts\Database\Repositories\GameStreamStatRepository;
 use Videostat\Http\Controllers\Controller;
+use Videostat\Http\Resources\GameStreamCollection;
 
 use Videostat\Contracts\Database\Repositories\GameRepository;
 use Videostat\Contracts\Database\Repositories\GameServiceRepository;
-use Videostat\Http\Resources\GameStreamCollection;
 
 class StreamController extends Controller
 {

@@ -2,4 +2,7 @@
 
 namespace Videostat\Contracts\Database\Models;
 
-interface Service {}
+interface Service
+{
+    const IS_ACTIVE_ACTIVE = 1;
+}

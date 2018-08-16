@@ -70,7 +70,15 @@ class GamesStreamsCollectorService
             }
 
             $service = $this->service_repository->find($service_id);
-            $driver = ServiceApi::getInstance($service);
+
+            try {
+                $driver = ServiceApi::getInstance($service);
+            } catch (\Exception $exception) {
+                $driver = null;
+            }
+
+            if (empty($driver))
+                continue;
 
             $offset_streams = 0;
             $limit_streams = 10000;
