@@ -19,7 +19,8 @@ class StreamController extends Controller
         GameServiceRepository $game_service_repository,
         GameStreamStatRepository $game_stream_stat_repository
     ) {
-        $games_services = $game_service_repository->findActiveForGame($game_repository->find($request->game_id));
+        $games_services = $game_service_repository->findActiveForGames($game_repository->findAll(explode(',', $request->games_ids)));
+
         $streams_list = $game_stream_stat_repository->findStreamsListForGamesServices(
             $games_services,
             $request->period_start,
@@ -37,8 +38,8 @@ class StreamController extends Controller
         GameServiceRepository $game_service_repository,
         GameStreamStatRepository $game_stream_stat_repository
     ) {
-        $games_services = $game_service_repository->findActiveForGame($game_repository->find($request->game_id));
-        $streams_list = $game_stream_stat_repository->findStreamsListForGamesServices(
+        $games_services = $game_service_repository->findActiveForGames($game_repository->findAll(explode(',', $request->games_ids)));
+        $streams_list = $game_stream_stat_repository->findStreamsViewersForGamesServices(
             $games_services,
             $request->period_start,
             $request->period_end,

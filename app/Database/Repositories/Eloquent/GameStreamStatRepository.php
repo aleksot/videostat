@@ -31,100 +31,265 @@ class GameStreamStatRepository implements Contract
         if ($offset <= 0)
             $offset = 0;
 
-        $games_streams_ids = $this->findGamesStreamsIds($games_services, $period_start, $period_end);
+        $games_streams_stat_binds = $this->findGamesStreamsStatBindsByGamesServices(
+            $games_services,
+            $period_start,
+            $period_end,
+            $limit,
+            $offset
+        );
 
-        $data = [];
-
-        foreach ($games_streams_ids as $key => $games_streams_id) {
-            $shard = $this->getShard($games_streams_id);
-
-            if (!isset($data[$shard]))
-                $data[$shard] = [];
-
-            $data[$shard][] = $games_streams_id;
-            unset($games_streams_ids[$key]);
-        }
-
-        unset($games_streams_ids);
+        $data = $this->normalizeGameStatBinds($games_streams_stat_binds);
 
         $result = [];
 
-        foreach ($data as $shard => $games_streams_ids) {
-            if (empty($limit))
-                break;
+        foreach ($data as $shard => &$shard_data) {
+            foreach ($shard_data as $games_streams_stat_suffix => &$games_streams_stat_binds) {
+                $table_name = sprintf('games_streams_stat_%s', $games_streams_stat_suffix);
 
-            $table_name = sprintf('games_streams_stat_%s', date('Y_m'));
+                $query = "
+                    SELECT
+                      `id`,
+                      `external_stream_id`
+                    FROM
+                      `$table_name` 
+                    WHERE
+                      `id` IN(" . join(', ', array_map('intval', array_column($games_streams_stat_binds, 'id'))) . ")";
 
-            $query = "
-                SELECT
-                  `external_stream_id` `id`
-                FROM
-                  `$table_name` 
-                WHERE
-                  id IN(" . join(',', array_map('intval', $games_streams_ids)) . ")
-                LIMIT :offset, :limit";
+                $res = DB::connection("gss_stat_$shard")->select($query);
 
-            $res = DB::connection("gss_stat_$shard")->select($query, [
-                ':offset' => $offset,
-                ':limit' => $limit,
-            ]);
+                foreach ($res as $row) {
+                    $id = array_get($row, 'id');
 
-            if ($res) {
-                foreach ($res as $key => $params) {
-                    $result[array_get($params, 'id')] = $params;
-                    unset($res[$key]);
+                    if (isset($games_streams_stat_binds[$id])) {
+                        $result[$id] = array_merge(
+                            $games_streams_stat_binds[$id],
+                            ['stream_id' => array_get($row, 'external_stream_id')]
+                        );
+
+                        unset($games_streams_stat_binds[$id]);
+                    }
                 }
             }
 
-            $cnt = count($result);
-
-            if ($cnt >= $limit)
-                break;
-
-            $offset -= $cnt;
-            $offset = max($offset, 0);
-
-            $limit -= $cnt;
-            $limit = max($limit, 0);
+            unset($games_streams_stat_binds, $data[$shard]);
         }
 
-        if ($result) {
-            $result = array_slice($result, 0, $limit);
-        } else {
-            $result = [];
-        }
+        unset($shard_data, $data);
 
         return collect($result)->map(function ($arg) {
             return is_array($arg) ? collect($arg) : $arg;
         });
     }
 
-    protected function findGamesStreamsIds($games_services, $period_start = null, $period_end = null)
+    public function findViewersForGamesServices(
+        $games_services,
+        $period_start = null,
+        $period_end = null,
+        $limit = null,
+        $offset = null
+    ) {
+        if ($limit <= 0)
+            $limit = 10000;
+
+        if ($offset <= 0)
+            $offset = 0;
+
+        $games_streams_stat_binds = $this->findGamesStreamsStatBindsByGamesServices(
+            $games_services,
+            $period_start,
+            $period_end,
+            $limit,
+            $offset
+        );
+
+        $data = $this->normalizeGameStatBinds($games_streams_stat_binds);
+
+        $result = [];
+
+        foreach ($data as $shard => &$shard_data) {
+            foreach ($shard_data as $games_streams_stat_suffix => &$games_streams_stat_binds) {
+                $table_name = sprintf('games_streams_stat_%s', $games_streams_stat_suffix);
+
+                $query = "
+                    SELECT
+                      `id`,
+                      `external_viewers_count`
+                    FROM
+                      `$table_name` 
+                    WHERE
+                      `id` IN(" . join(', ', array_map('intval', array_column($games_streams_stat_binds, 'id'))) . ")";
+
+                $res = DB::connection("gss_stat_$shard")->select($query);
+
+                foreach ($res as $row) {
+                    $id = array_get($row, 'id');
+
+                    if (isset($games_streams_stat_binds[$id])) {
+                        $result[$id] = array_merge(
+                            $games_streams_stat_binds[$id],
+                            ['stream_id' => array_get($row, 'external_stream_id')]
+                        );
+
+                        unset($games_streams_stat_binds[$id]);
+                    }
+                }
+            }
+
+            unset($games_streams_stat_binds, $data[$shard]);
+        }
+
+        unset($shard_data, $data);
+
+        return collect($result)->map(function ($arg) {
+            return is_array($arg) ? collect($arg) : $arg;
+        });
+    }
+
+    protected function normalizeGameStatBinds($games_streams_stat_binds)
     {
-        $games_services_ids = [];
+        $data = [];
 
-        foreach ($games_services as $game_service) {
-            $games_services_ids[] = $game_service->id;
+        foreach ($games_streams_stat_binds as $key => $games_streams_stat_bind) {
+            $games_streams_stat_id = array_get($games_streams_stat_bind, 'id');
+            $games_streams_stat_suffix = array_get($games_streams_stat_bind, 'created_at');
+
+            if (empty($games_streams_stat_id) || empty($games_streams_stat_suffix)) {
+                continue;
+            }
+
+            $shard = $this->getShard($games_streams_stat_id);
+
+            if (!isset($data[$shard]))
+                $data[$shard] = [];
+
+            $games_streams_stat_suffix = date('Y_m', strtotime($games_streams_stat_suffix));
+
+            if (!isset($data[$shard][$games_streams_stat_suffix]))
+                $data[$shard][$games_streams_stat_suffix] = [];
+
+            $data[$shard][$games_streams_stat_suffix][$games_streams_stat_id] = $games_streams_stat_bind;
+            unset($games_streams_stat_binds[$key]);
         }
 
-        if ($games_services_ids) {
-            $table_name = sprintf('gss_stat_bind_%s', date('Y_m'));
+        unset($games_streams_ids);
 
-            $query = "
-            SELECT
-              `gss_stat_id` `id`
-            FROM
-              `$table_name`
-            WHERE
-              `games_services_id` IN(" . join(', ', array_map('intval', $games_services_ids)) . ")
-              AND `created_at` BETWEEN NOW() - INTERVAL 1 DAY AND NOW()";
+        return $data;
+    }
 
-            $res = DB::connection('gss_stat_bind')->select($query);
+    protected function findGssStatBindTables($period_start, $period_end)
+    {
+        $period_from = new \DateTime(date('Y-m-01', strtotime($period_start)));
+        $period_to = new \DateTime(date('Y-m-t', strtotime($period_end)));
+
+        $period = new \DatePeriod($period_from, new \DateInterval('P1M'), $period_to);
+
+        $values = [];
+
+        foreach($period as $date) {
+            $suffix = $date->format('Y_m');
+            $values[sprintf(':table_%s', $suffix)] = sprintf('gss_stat_bind_%s', $suffix);
+        }
+
+        if ($values) {
+            $connection = DB::connection('gss_stat_bind');
+            $result = $connection
+                ->select("
+                    SHOW TABLES FROM {$connection->getDatabaseName()} 
+                    WHERE
+                        `Tables_in_{$connection->getDatabaseName()}` LIKE " .  join(" OR  `Tables_in_{$connection->getDatabaseName()}` LIKE ", array_keys($values)). " 
+                    ", $values);
+
+            if ($result) {
+                foreach ($result as &$row) {
+                    $row = current($row);
+                }
+
+                unset($row);
+                sort($result);
+            } else {
+                $result = [];
+            }
         } else {
-            $res = false;
+            $result = [];
         }
 
-        return empty($res) ? [] : array_column($res, 'id');
+        return $result;
+    }
+
+    protected function findGamesStreamsStatBindsByGamesServices($games_services, $period_start, $period_end, $limit, $offset)
+    {
+        if (empty($limit)) {
+            $result = [];
+        } else {
+            $games_services_ids = [];
+
+            foreach ($games_services as $game_service) {
+                $games_services_ids[$game_service->id] = 1;
+            }
+
+            if ($games_services_ids) {
+                $result = [];
+
+                $limit_original = $limit;
+
+                $period_start = static::periodToDateTime($period_start);
+                $period_end = static::periodToDateTime($period_end);
+
+                foreach ($this->findGssStatBindTables($period_start, $period_end) as $table_name) {
+                    $query = "
+                        SELECT
+                          `gss_stat_id` `id`,
+                          `games_services_id`,
+                          `created_at`
+                        FROM
+                          `$table_name`
+                        WHERE
+                          `games_services_id` IN(" . join(', ', array_map('intval', array_keys($games_services_ids))) . ")
+                          AND `created_at` BETWEEN :period_start AND :period_end
+                        ORDER BY
+                            `created_at`
+                        LIMIT :offset, :limit";
+
+                    $res = DB::connection('gss_stat_bind')->select($query, [
+                        ':period_start' => $period_start,
+                        ':period_end' => $period_end,
+                        ':offset' => $offset,
+                        ':limit' => $limit,
+                    ]);
+
+                    if ($res) {
+                        foreach ($res as $key => $params) {
+                            $result[array_get($params, 'id')] = $params;
+                            unset($res[$key]);
+                        }
+                    }
+
+                    $cnt = count($result);
+
+                    if ($cnt >= $limit)
+                        break;
+
+                    $offset -= $cnt;
+                    $offset = max($offset, 0);
+
+                    $limit -= $cnt;
+                    $limit = max($limit, 0);
+                }
+
+                $result = array_slice($result, 0, $limit_original);
+            } else {
+                $result = [];
+            }
+        }
+
+        return $result;
+    }
+
+    protected static function periodToDateTime($period)
+    {
+        $period = trim($period);
+        return date('Y-m-d H:i:s', is_int($period) ? $period : strtotime($period));
     }
 
     public function collect(GameService $game_service, $streams)

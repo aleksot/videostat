@@ -2,7 +2,6 @@
 
 namespace Videostat\Database\Repositories\Eloquent;
 
-use Videostat\Contracts\Database\Models\Game;
 use Videostat\Contracts\Database\Models\GameService;
 use Videostat\Contracts\Database\Repositories\GameServiceRepository as Contract;
 
@@ -23,13 +22,24 @@ class GameServiceRepository implements Contract
         return $game_service->where($game_service->getKeyName(), $id)->first();
     }
 
-    public function findActiveForGame(Game $game)
+    public function findActiveForGames($games)
     {
         $game_service = $this->game_service;
 
-        return $game_service
-            ->where('game_id', $game->id)
-            ->where('is_active', GameService::IS_ACTIVE_ACTIVE)
-            ->get();
+        $games_ids = [];
+
+        foreach ($games as $game)
+            $games_ids[$game->id] = 1;
+
+        if ($games_ids) {
+            $result = $game_service
+                ->whereIn('game_id', $games_ids)
+                ->where('is_active', GameService::IS_ACTIVE_ACTIVE)
+                ->get();
+        } else {
+            $result = [];
+        }
+
+        return $result;
     }
 }

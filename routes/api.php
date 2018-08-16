@@ -17,5 +17,5 @@ Route::middleware('client')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::middleware(['client', 'check_game'])->get('/stream', 'Api\StreamController@index');
-Route::middleware(['client', 'check_game'])->get('/stream/viewers', 'Api\StreamController@viewers');
+Route::middleware(['client', 'check_api_stream'])->get('/stream', 'Api\StreamController@index');
+Route::middleware(['client', 'check_api_stream'])->get('/stream/viewers', 'Api\StreamController@viewers');

@@ -19,4 +19,9 @@ class GameRepository implements Contract
     {
         return $this->game->where($this->game->getKeyName(), $id)->first();
     }
+
+    public function findAll($ids)
+    {
+        return $this->game->whereIn($this->game->getKeyName(), $ids)->get();
+    }
 }
