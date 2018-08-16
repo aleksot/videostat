@@ -29,6 +29,20 @@ class StreamController extends Controller
             $request->offset
         );
 
+        foreach ($streams_list as $index => $stream) {
+            $game_service_id = $game_service_repository->find(array_get($stream, 'games_services_id'));
+
+            if (empty($game_service_id )) {
+                unset($streams_list[$index]);
+                continue;
+            }
+
+            unset($streams_list[$index]['games_services_id']);
+
+            $streams_list[$index]['game_id'] = $game_service_id->game_id;
+            $streams_list[$index]['service_id'] = $game_service_id->service_id;
+        }
+
         return new GameStreamCollection($streams_list);
     }
 
