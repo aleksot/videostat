@@ -18,11 +18,6 @@ class GameStreamStatRepository implements Contract
         $this->game_stream_stat->setConnection('videostat');
     }
 
-    public function find($id)
-    {
-        return $this->game->where($this->game->getKeyName(), $id)->first();
-    }
-
     public function findStreamsListForGamesServices(
         $games_services,
         $period_start = null,
@@ -104,7 +99,7 @@ class GameStreamStatRepository implements Contract
         });
     }
 
-    public function findGamesStreamsIds($games_services, $period_start = null, $period_end = null)
+    protected function findGamesStreamsIds($games_services, $period_start = null, $period_end = null)
     {
         $games_services_ids = [];
 

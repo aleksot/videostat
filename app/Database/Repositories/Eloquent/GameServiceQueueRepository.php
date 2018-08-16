@@ -22,11 +22,6 @@ class GameServiceQueueRepository implements Contract
         $this->game_service_queue->setConnection('videostat');
     }
 
-    public function find($id)
-    {
-
-    }
-
     public function findLocked($lock_value, $limit = 50)
     {
         if ($lock_id = $this->getLockId()) {

@@ -29,7 +29,7 @@ class GameServiceRepository implements Contract
 
         return $game_service
             ->where('game_id', $game->id)
-            ->where('is_Active', GameService::IS_ACTIVE_ACTIVE)
+            ->where('is_active', GameService::IS_ACTIVE_ACTIVE)
             ->get();
     }
 }
